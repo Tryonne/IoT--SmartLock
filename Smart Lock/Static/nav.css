@@ -1,0 +1,161 @@
+/* static/css/nav.css */
+:root {
+    --sidebar-width: 250px;
+    --primary-color: #2c3e50;
+    --active-color: #3498db;
+    --text-color: #ecf0f1;
+    --hover-color: #34495e;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.logo-container {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo-container h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.nav-menu {
+    flex: 1;
+    list-style: none;
+    padding: 20px 0;
+    margin: 0;
+}
+
+.nav-menu li a {
+    display: block;
+    padding: 12px 20px;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.3s;
+    font-size: 0.95rem;
+}
+
+.nav-menu li a:hover {
+    background-color: var(--hover-color);
+}
+
+.nav-menu li a.active {
+    background-color: var(--active-color);
+}
+
+.nav-menu li a i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.logout-container {
+    padding: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn i {
+    margin-right: 8px;
+}
+
+.burger-menu {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    z-index: 1001;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        width: 100%;
+        height: 60px;
+    }
+    
+    .sidebar:not(.expanded) {
+        height: 60px;
+    }
+    
+    .sidebar.expanded {
+        height: 100vh;
+    }
+    
+    .logo-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        height: 60px;
+        padding: 1rem;
+        background-color: var(--primary-color);
+    }
+    
+    .nav-menu {
+        display: none;
+        width: 100%;
+        padding-top: 0;
+    }
+    
+    .sidebar.expanded .nav-menu {
+        display: block;
+        opacity: 1;
+    }
+    
+    .logout-container {
+        display: none;
+        padding: 1rem;
+    }
+    
+    .sidebar.expanded .logout-container {
+        display: block;
+        opacity: 1;
+    }
+    
+    .burger-menu {
+        display: block;
+    }
+    
+    main {
+        margin-top: 60px;
+        margin-left: 0;
+        width: 100%;
+    }
+}

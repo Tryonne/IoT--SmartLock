@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code - SmartLock</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='painel.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        .qr-card {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .qr-image-container {
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .progress {
+            height: 8px;
+            margin-top: 1rem;
+        }
+        
+        .countdown-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+        }
+        
+        .countdown-text {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        #deleteBtn {
+            min-width: 100px;
+        }
+        
+        @media (max-width: 768px) {
+            .qr-card {
+                margin-top: 1rem;
+            }
+        }
+    </style>
+    <!-- Add this meta tag with other meta tags -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+    {% include 'nav.html' %}
+    
+    <main class="main-content">
+        <div class="container-fluid">
+            <div class="page-header">
+                <h1>QR Code de Acesso</h1>
+                <p class="subtitle">Gerencie códigos de acesso temporários</p>
+            </div>
+            
+            <div class="row justify-content-center">
+                <div class="col-lg-6">
+                    <div class="card qr-card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-plus-circle"></i> Gerar Novo Código</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="qrForm">
+                                <div class="mb-3">
+                                    <label for="validade" class="form-label">Tempo de Validade</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="validade" 
+                                               min="1" max="1440" value="5" required>
+                                        <span class="input-group-text">minutos</span>
+                                    </div>
+                                    <small class="text-muted">Máximo de 24 horas (1440 minutos)</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100" id="generateBtn">
+                                    <i class="fas fa-qrcode"></i> Gerar QR Code
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card qr-card mt-4" id="qrContainer" style="display: none;">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clock"></i> Código Ativo</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="qr-image-container text-center">
+                                <img id="qrImage" src="" alt="QR Code" class="img-fluid">
+                                <div class="progress">
+                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="countdown-container">
+                                <div class="countdown-text">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Expira em: <span id="countdown">05:00</span>
+                                </div>
+                                <button id="deleteBtn" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-trash-alt"></i> Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let countdownInterval;
+        let currentQRData = null;
+        
+        // Elementos da UI
+        const generateBtn = document.getElementById('generateBtn');
+        const qrContainer = document.getElementById('qrContainer');
+        const qrForm = document.getElementById('qrForm');
+        
+        // Função para iniciar o contador
+        function startCountdown(seconds) {
+            clearInterval(countdownInterval);
+            updateCountdownDisplay(seconds);
+            
+            countdownInterval = setInterval(() => {
+                seconds--;
+                updateCountdownDisplay(seconds);
+                
+                // Atualiza a barra de progresso
+                const validity = document.getElementById('validade').value;
+                const totalSeconds = validity * 60;
+                const percent = (seconds / totalSeconds) * 100;
+                document.getElementById('progressBar').style.width = `${percent}%`;
+                
+                // Muda a cor quando estiver perto de expirar
+                if (percent < 30) {
+                    document.getElementById('progressBar').classList.remove('bg-success');
+                    document.getElementById('progressBar').classList.add('bg-warning');
+                }
+                if (percent < 15) {
+                    document.getElementById('progressBar').classList.remove('bg-warning');
+                    document.getElementById('progressBar').classList.add('bg-danger');
+                }
+                
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                    showAlert('O QR Code expirou', 'info');
+                    
+                    // Automatically delete the expired QR code
+                    deleteQRCode().then(() => {
+                        resetUI();
+                        // Reset progress bar
+                        const progressBar = document.getElementById('progressBar');
+                        progressBar.style.width = '100%';
+                        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+                        progressBar.classList.remove('bg-warning', 'bg-danger');
+                    });
+                }
+            }, 1000);
+        }
+        
+        // Função para atualizar o display do contador
+        function updateCountdownDisplay(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('countdown').textContent = `${mins}:${secs}`;
+        }
+        
+        // Função para resetar a UI
+        function resetUI() {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-qrcode"></i> Gerar QR Code';
+            qrContainer.style.display = 'none';
+            currentQRData = null;
+        }
+        
+        // Função para mostrar alertas
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 3000);
+        }
+        
+        // Função para deletar o QR code manualmente
+        async function deleteQRCode() {
+            if (!currentQRData) return;
+            
+            try {
+                const response = await fetch('/qrcode/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ qr_data: currentQRData })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao deletar QR Code');
+                }
+                
+                clearInterval(countdownInterval);
+                resetUI();
+                showAlert('QR Code cancelado com sucesso', 'success');
+                
+                // Força uma atualização do status
+                await checkActiveQR();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Erro ao cancelar QR Code: ' + error.message, 'danger');
+            }
+        }
+        
+
+        // Update the fetch requests in the script section 
+            // Event Listeners
+            qrForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const validity = document.getElementById('validade').value;
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ativo...';
+                
+                try {
+                    const response = await fetch('/qrcode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: `validade=${validity}`
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Erro ao gerar QR Code');
+                    }
+                    
+                    // Mostra o QR code gerado
+                    document.getElementById('qrImage').src = data.qr_image;
+                    qrContainer.style.display = 'block';
+                    currentQRData = data.qr_data;
+                    
+                    // Inicia o contador
+                    startCountdown(validity * 60);
+                    
+                    showAlert('QR Code gerado com sucesso', 'success');
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    showAlert('Erro: ' + error.message, 'danger');
+                } finally {
+                    if (!currentQRData) {
+                        generateBtn.disabled = false;
+                        generateBtn.innerHTML = '<i class="fas fa-qrcode"></i> Gerar QR Code';
+                    }
+                }
+            });
+            
+            document.getElementById('deleteBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                deleteQRCode();
+            });
+            
+            // Verifica se há QR code ativo ao carregar a página
+            async function checkActiveQR() {
+                try {
+                    const response = await fetch('/qrcode/status');
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Error checking QR status');
+                    }
+                    
+                    if (data.active) {
+                        // Update UI elements
+                        document.getElementById('qrImage').src = data.qr_image;
+                        qrContainer.style.display = 'block';
+                        currentQRData = data.qr_data;
+                        
+                        // Disable generate button while QR is active
+                        generateBtn.disabled = true;
+                        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ativo...';
+                        
+                        // Start countdown with remaining time
+                        startCountdown(data.remaining);
+                        
+                        // Update progress bar initial state
+                        const validityMinutes = Math.ceil(data.remaining / 60);
+                        document.getElementById('validade').value = validityMinutes;
+                        
+                        const percent = (data.remaining / (validityMinutes * 60)) * 100;
+                        const progressBar = document.getElementById('progressBar');
+                        progressBar.style.width = `${percent}%`;
+                        
+                        // Set appropriate progress bar color based on remaining time
+                        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+                        if (percent < 30) {
+                            progressBar.classList.add('bg-warning');
+                        } else if (percent < 15) {
+                            progressBar.classList.add('bg-danger');
+                        } else {
+                            progressBar.classList.add('bg-success');
+                        }
+                        
+                        return true;
+                    }
+                    return false;
+                    
+                } catch (error) {
+                    console.error('Error checking active QR:', error);
+                    return false;
+                }
+            }
+            // Executa ao carregar a página
+            checkActiveQR();
+        </script>
+    </body>
+</html>

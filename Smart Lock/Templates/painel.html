@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Acessos - SmartLock</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='painel.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+    {% include 'nav.html' %}
+    
+    <main class="main-content">
+        <div class="container-fluid">
+            <!-- Título -->
+            <div class="page-header">
+                <h1>Gestão de Acessos</h1>
+                <p class="subtitle">Gerencie os PINs de acesso ao sistema</p>
+            </div>
+            
+            <!-- Seção de Adição -->
+            <div class="card add-section">
+                <div class="card-header">
+                    <h5><i class="fas fa-plus-circle"></i> Adicionar Novo PIN</h5>
+                </div>
+                <div class="card-body">
+                    <form id="addPinForm">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-8">
+                                <label for="pinInput" class="form-label">Código PIN</label>
+                                <input type="text" class="form-control" id="pinInput" 
+                                       placeholder="Digite o novo PIN numérico" 
+                                       required 
+                                       minlength="5" 
+                                       pattern="\d{5,}"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                       title="O PIN deve ter no mínimo 5 dígitos">
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Tabela de PINs -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> PINs Cadastrados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>PIN</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pinsTable">
+                                {% for pin in pins %}
+                                <tr>
+                                    <td>{{ pin.entrada }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if pin.autorizado else 'bg-danger' }}">
+                                            {{ 'Autorizado' if pin.autorizado else 'Bloqueado' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary edit-btn" 
+                                                data-pin="{{ pin.entrada }}" 
+                                                data-status="{{ 'True' if pin.autorizado else 'False' }}">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger delete-btn" 
+                                                data-pin="{{ pin.entrada }}">
+                                            <i class="fas fa-trash-alt"></i> Apagar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar PIN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPinForm">
+                        <input type="hidden" id="editPinId">
+                        <div class="mb-3">
+                            <label for="editPinValue" class="form-label">PIN</label>
+                            <input type="number" class="form-control" id="editPinValue" 
+                                required 
+                                minlength="5" 
+                                pattern="\d{5,}"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                title="O PIN deve ter no mínimo 5 dígitos numéricos">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editPinStatus">
+                                <label class="form-check-label" for="editPinStatus">Autorizado</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+            // Função para verificar resposta HTTP
+            async function handleResponse(response) {
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro na requisição');
+                }
+                return response.json();
+            }
+
+            // Add new PIN
+            document.getElementById('addPinForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const pin = document.getElementById('pinInput').value;
+                
+                try {
+                    const response = await fetch('/api/pins', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            pin: pin,
+                            autorizado: true
+                        })
+                    });
+                    
+                    const data = await handleResponse(response);
+                    showAlert('PIN adicionado com sucesso!', 'success');
+                    document.getElementById('pinInput').value = '';
+                    setTimeout(() => window.location.reload(), 1000);
+                } catch (error) {
+                    showAlert(error.message, 'danger');
+                }
+            });
+
+            // Edit PIN buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const pin = this.getAttribute('data-pin');
+                    const status = this.getAttribute('data-status');
+                    
+                    document.getElementById('editPinId').value = pin;
+                    document.getElementById('editPinValue').value = pin;
+                    document.getElementById('editPinStatus').checked = status === 'True';
+                    
+                    editModal.show();
+                });
+            });
+
+            // Save edited PIN
+            document.getElementById('saveEditBtn').addEventListener('click', async function() {
+                const originalPin = document.getElementById('editPinId').value;
+                const newPin = document.getElementById('editPinValue').value;
+                const isActive = document.getElementById('editPinStatus').checked;
+                
+                try {
+                    const response = await fetch('/api/pins', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            entrada_original: originalPin,
+                            nova_entrada: newPin,
+                            autorizado: isActive
+                        })
+                    });
+                    
+                    const data = await handleResponse(response);
+                    showAlert('PIN atualizado com sucesso!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                    editModal.hide();
+                } catch (error) {
+                    showAlert(error.message, 'danger');
+                }
+            });
+
+            // Delete PIN buttons
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const pin = this.getAttribute('data-pin');
+                    if (confirm(`Tem certeza que deseja apagar o PIN ${pin}?`)) {
+                        try {
+                            const response = await fetch('/api/pins', {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                                },
+                                body: JSON.stringify({
+                                    pin: pin
+                                })
+                            });
+                            
+                            const data = await handleResponse(response);
+                            showAlert('PIN apagado com sucesso!', 'success');
+                            setTimeout(() => window.location.reload(), 1000);
+                        } catch (error) {
+                            showAlert(error.message, 'danger');
+                        }
+                    }
+                });
+            });
+
+
+            // Alert function
+            function showAlert(message, type) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                alertDiv.style.top = '20px';
+                alertDiv.style.right = '20px';
+                alertDiv.style.zIndex = '1000';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    alertDiv.classList.remove('show');
+                    setTimeout(() => alertDiv.remove(), 150);
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

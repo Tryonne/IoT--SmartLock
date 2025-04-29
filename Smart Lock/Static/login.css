@@ -1,0 +1,96 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.login-container {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.login-container h1 {
+    margin-bottom: 24px;
+    color: #2c3e50;
+    font-size: 24px;
+}
+
+label {
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #34495e;
+}
+
+input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #2d3142;
+    color: #fff;
+    width: 100%;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #1e212d;
+}
+
+/* MEDIA QUERIES */
+
+@media (max-width: 600px) {
+    .login-container {
+        padding: 30px 20px;
+        border-radius: 8px;
+    }
+
+    .login-container h1 {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+
+    input[type="password"],
+    button {
+        font-size: 14px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 400px) {
+    .login-container {
+        box-shadow: none;
+        padding: 20px 15px;
+        width: 70%;
+    }
+
+    label {
+        font-size: 14px;
+    }
+
+    .login-container h1 {
+        font-size: 18px;
+    }
+}

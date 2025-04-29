@@ -1,0 +1,6 @@
+flask==2.0.1
+firebase-admin
+flask-wtf
+flask-limiter
+beautifulsoup4
+gunicorn
