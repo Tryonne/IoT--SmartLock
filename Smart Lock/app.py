@@ -220,7 +220,78 @@ def qrcode_status():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== ANALYTICS =====
+from datetime import datetime, timedelta
+from sqlalchemy import func, desc
 
+@app.route('/analytics')
+@login_required
+def analytics():
+    try:
+        # Definir período de análise
+        data_inicio = (datetime.now() - timedelta(days=30)).isoformat()
+        logs = db.ler_logs()
+        
+        logs_list = []
+        for log_id, log_data in logs.items():
+            if log_data['data'] >= data_inicio:
+                logs_list.append(log_data)
+        
+        total_acessos = len(logs_list)
+        acessos_autorizados = len([log for log in logs_list if log['status'] == 'autorizado'])
+        taxa_sucesso = round((acessos_autorizados / total_acessos * 100) if total_acessos > 0 else 0, 1)
+        
+        data_7_dias = (datetime.now() - timedelta(days=7)).isoformat()
+        logs_7_dias = [log for log in logs_list if log['data'] >= data_7_dias]
+        
+        horas_count = {}
+        for log in logs_7_dias:
+            hora = datetime.fromisoformat(log['data']).hour
+            horas_count[hora] = horas_count.get(hora, 0) + 1
+        
+        horario_pico = "N/A"
+        if horas_count:
+            hora_mais_ativa = max(horas_count.items(), key=lambda x: x[1])[0]
+            horario_pico = f"{hora_mais_ativa:02d}:00"
+        
+        tentativas_negadas = len([log for log in logs_list if log['status'] == 'negado'])
+        
+        dias = []
+        acessos_por_dia = []
+        for i in range(30):
+            data = datetime.now() - timedelta(days=i)
+            data_str = data.strftime('%Y-%m-%d')
+            dias.insert(0, data.strftime('%d/%m'))
+            
+            count = len([
+                log for log in logs_list 
+                if datetime.fromisoformat(log['data']).strftime('%Y-%m-%d') == data_str
+            ])
+            acessos_por_dia.insert(0, count)
+        
+        tipos_acesso = [
+            len([log for log in logs_list if log['tipo'] == 'PIN']),
+            len([log for log in logs_list if log['tipo'] == 'QR']),
+            len([log for log in logs_list if log['tipo'] not in ['PIN', 'QR']])
+        ]
+        
+        logs_list.sort(key=lambda x: x['data'], reverse=True)
+        ultimos_acessos = logs_list[:10]
+        
+        return render_template(
+            'analytics.html',
+            total_acessos=total_acessos,
+            taxa_sucesso=taxa_sucesso,
+            horario_pico=horario_pico,
+            tentativas_negadas=tentativas_negadas,
+            dias=dias,
+            acessos_por_dia=acessos_por_dia,
+            tipos_acesso=tipos_acesso,
+            ultimos_acessos=ultimos_acessos
+        )
+    except Exception as e:
+        print(f"Erro na rota analytics: {str(e)}")
+        return "Erro ao carregar análises", 500
 
 # ===== DEFINICOES =====  
 @app.route('/definicoes')
