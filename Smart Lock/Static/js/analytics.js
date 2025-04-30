@@ -6,22 +6,22 @@ function atualizarDados() {
         .then(response => response.json())
         .then(data => {
             // Atualiza as métricas principais
-            document.querySelector('.metric-value:nth-child(1)').textContent = data.total_acessos;
-            document.querySelector('.metric-value:nth-child(2)').textContent = data.taxa_sucesso + '%';
-            document.querySelector('.metric-value:nth-child(3)').textContent = data.horario_pico;
-            document.querySelector('.metric-value:nth-child(4)').textContent = data.tentativas_negadas;
+            document.getElementById('totalAcessos').textContent = data.total_acessos;
+            document.getElementById('taxaSucesso').textContent = data.taxa_sucesso + '%';
+            document.getElementById('horarioPico').textContent = data.horario_pico;
+            document.getElementById('tentativasNegadas').textContent = data.tentativas_negadas;
 
             // Atualiza o gráfico de linha
-            lineChart.data.labels = data.dias;
-            lineChart.data.datasets[0].data = data.acessos_por_dia;
-            lineChart.update();
+            window.lineChart.data.labels = data.dias;
+            window.lineChart.data.datasets[0].data = data.acessos_por_dia;
+            window.lineChart.update();
 
             // Atualiza o gráfico de pizza
-            pieChart.data.datasets[0].data = data.tipos_acesso;
-            pieChart.update();
+            window.pieChart.data.datasets[0].data = data.tipos_acesso;
+            window.pieChart.update();
 
             // Atualiza a tabela de últimos acessos
-            const tbody = document.querySelector('table tbody');
+            const tbody = document.getElementById('tabelaUltimosAcessos');
             tbody.innerHTML = '';
             data.ultimos_acessos.forEach(acesso => {
                 tbody.innerHTML += `
@@ -45,7 +45,7 @@ function atualizarDados() {
 document.addEventListener('DOMContentLoaded', function() {
     // Configuração do gráfico de linha
     const ctxLine = document.getElementById('acessosPorDia').getContext('2d');
-    window.lineChart = new Chart(ctxLine, lineChartConfig);
+    window.lineChart = new Chart(ctxLine, window.lineChartConfig);
 
     // Configuração do gráfico de pizza
     const ctxPie = document.getElementById('tiposAcesso').getContext('2d');
@@ -80,5 +80,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Atualiza os dados periodicamente
-    setInterval(atualizarDados, 30000);
+    setInterval(atualizarDados, 10000); // 10 segundos
+    atualizarDados(); // Atualiza logo ao carregar a página
 });
