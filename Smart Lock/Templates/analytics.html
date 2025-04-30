@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Acessos - SmartLock</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='analytics.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        .badge {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        .bg-success {
+            background-color: #2ecc71 !important;
+        }
+        .bg-danger {
+            background-color: #e74c3c !important;
+        }
+    </style>
+</head>
+<body>
+    {% include 'nav.html' %}
+    
+    <main class="main-content">
+        <div class="container-fluid">
+            <div class="page-header">
+                <h1>Análise de Acessos</h1>
+                <p class="subtitle">Estatísticas e métricas de utilização do sistema</p>
+            </div>
+
+            <div class="row g-4">
+                <!-- Cards de Métricas -->
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="metric-card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-door-open"></i> Total de Acessos</h5>
+                            <h2 class="metric-value" id="totalAcessos">{{ total_acessos }}</h2>
+                            <p class="metric-period">Últimos 30 dias</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="metric-card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-check-circle"></i> Taxa de Sucesso</h5>
+                            <h2 class="metric-value" id="taxaSucesso">{{ taxa_sucesso }}%</h2>
+                            <p class="metric-period">Últimos 30 dias</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="metric-card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-clock"></i> Horário Mais Ativo</h5>
+                            <h2 class="metric-value" id="horarioPico">{{ horario_pico }}</h2>
+                            <p class="metric-period">Últimos 7 dias</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="metric-card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fas fa-exclamation-triangle"></i> Tentativas Negadas</h5>
+                            <h2 class="metric-value" id="tentativasNegadas">{{ tentativas_negadas }}</h2>
+                            <p class="metric-period">Últimos 30 dias</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-2">
+                <!-- Gráficos -->
+                <div class="col-12 col-lg-8">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line"></i> Acessos por Dia</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="acessosPorDia"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-pie"></i> Tipos de Acesso</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="tiposAcesso"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <!-- Tabela -->
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list"></i> Últimos Acessos</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data/Hora</th>
+                                            <th>Tipo</th>
+                                            <th>Status</th>
+                                            <th>Método</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabelaUltimosAcessos">
+                                        {% for acesso in ultimos_acessos %}
+                                        <tr>
+                                            <td>{{ acesso.data }}</td>
+                                            <td>{{ acesso.tipo }}</td>
+                                            <td>
+                                                <span class="badge {{ 'bg-success' if acesso.status == 'autorizado' else 'bg-danger' }}">
+                                                    {{ acesso.status }}
+                                                </span>
+                                            </td>
+                                            <td>{{ acesso.metodo }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Variáveis globais para o JS externo -->
+<script>
+    window.tiposAcessoData = {{ tipos_acesso | tojson | safe }};
+    window.lineChartConfig = {
+        type: 'line',
+        data: {
+            labels: {{ dias | tojson | safe }},
+            datasets: [{
+                label: 'Acessos por Dia',
+                data: {{ acessos_por_dia | tojson | safe }},
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Data'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Número de Acessos'
+                    }
+                }
+            }
+        }
+    };
+</script>
+
+<!-- Script JS que usa as variáveis globais -->
+<script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+
+</body>
+</html>
