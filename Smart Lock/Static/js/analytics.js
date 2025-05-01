@@ -1,5 +1,5 @@
 // analytics.js
-
+// ------------------------------ //
 // Função para atualizar os dados das métricas e gráficos
 function atualizarDados() {
     fetch('/analytics/dados')
@@ -12,8 +12,11 @@ function atualizarDados() {
             document.getElementById('tentativasNegadas').textContent = data.tentativas_negadas;
 
             // Atualiza o gráfico de linha
-            window.lineChart.data.labels = data.dias;
-            window.lineChart.data.datasets[0].data = data.acessos_por_dia;
+            console.log(data.dias, data.acessos_por_dia)
+            window.lineChart.data.labels.length = 0;
+            window.lineChart.data.labels.push(...data.dias);
+            window.lineChart.data.datasets[0].data.length = 0;
+            window.lineChart.data.datasets[0].data.push(...data.acessos_por_dia);
             window.lineChart.update();
 
             // Atualiza o gráfico de pizza
@@ -23,7 +26,7 @@ function atualizarDados() {
             // Atualiza a tabela de últimos acessos
             const tbody = document.getElementById('tabelaUltimosAcessos');
             tbody.innerHTML = '';
-            data.ultimos_acessos.forEach(acesso => {
+            data.ultimos_acessos.forEach(acesso => { 
                 tbody.innerHTML += `
                     <tr>
                         <td>${acesso.data}</td>
