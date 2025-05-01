@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request, redirect, session, jsonify, url_for, session
 from functools import wraps
 from config import SECRET_KEY, TOKEN_ADMIN, API_KEY
-from datetime import datetime
 from QRcode.qrcode_manager import QRCodeManager
-from functools import wraps
 import Firebase.firebase_crud as db
 import os
 from flask_wtf.csrf import CSRFProtect
+from datetime import datetime, timedelta
+from sqlalchemy import func, desc
+
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -221,9 +222,6 @@ def qrcode_status():
         return jsonify({'error': str(e)}), 500
 
 # ===== ANALYTICS =====
-from datetime import datetime, timedelta
-from sqlalchemy import func, desc
-
 @app.route('/analytics/')
 @login_required
 def analytics():
